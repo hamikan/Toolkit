@@ -1,0 +1,12 @@
+# ローカル設定
+.env
+.vscode/
+/AGENTS.md
+
+# 外部ライブラリ
+ac-library/
+
+# 生成物
+.DS_Store
+__pycache__/
+a.out
