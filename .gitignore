@@ -1,5 +1,7 @@
 # ローカル設定
 .env
+.venv/
+.pytest_cache/
 .vscode/
 /AGENTS.md
 
