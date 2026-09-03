@@ -54,14 +54,76 @@ SHORTCUTS = {
     "Geom": "Geometry",
 }
 _LIBRARY_NAMES = frozenset(SHORTCUTS.values())
+_QUICK_REFERENCE_START = "<!-- quick-reference:start -->"
+_QUICK_REFERENCE_END = "<!-- quick-reference:end -->"
+_SOLVED_PROBLEMS_START = "<!-- solved-problems:start -->"
+_SOLVED_PROBLEMS_END = "<!-- solved-problems:end -->"
 
 
 def available_libraries():
     return dict(SHORTCUTS)
 
 
+def _library_name(library):
+    if callable(library):
+        name = library.__name__
+    elif isinstance(library, str):
+        name = library
+    else:
+        raise TypeError("ライブラリ名または呼び出し関数を指定してください")
+    library_name = SHORTCUTS.get(name, name)
+    if library_name not in _LIBRARY_NAMES:
+        raise ValueError(f"未登録のライブラリです: {name}")
+    return library_name
+
+
 def _library_path(name):
     return ROOT / "algorithm" / name / "main.cpp"
+
+
+def _readme_path(name):
+    return ROOT / "algorithm" / name / "README.md"
+
+
+def _quick_reference(readme):
+    content = readme.read_text(encoding="utf-8")
+    start = content.find(_QUICK_REFERENCE_START)
+    end = content.find(_QUICK_REFERENCE_END)
+    if start == -1 or end == -1 or end < start:
+        raise ValueError(f"クイックリファレンスが見つかりません: {readme}")
+    start += len(_QUICK_REFERENCE_START)
+    reference = content[start:end].strip()
+    if not reference:
+        raise ValueError(f"クイックリファレンスが見つかりません: {readme}")
+    return reference
+
+
+def _solved_problem_content(content, entry, problem_url, readme):
+    if (
+        content.count(_SOLVED_PROBLEMS_START) != 1
+        or content.count(_SOLVED_PROBLEMS_END) != 1
+    ):
+        raise ValueError(f"solved-problemsマーカーが見つかりません: {readme}")
+    start = content.index(_SOLVED_PROBLEMS_START) + len(_SOLVED_PROBLEMS_START)
+    end = content.index(_SOLVED_PROBLEMS_END)
+    if end < start:
+        raise ValueError(f"solved-problemsマーカーの順番が不正です: {readme}")
+    body = content[start:end].strip()
+    if f"]({problem_url})" in body:
+        return content
+    if not body or body == "まだ登録されていません。":
+        body = entry
+    else:
+        body = f"{body}\n{entry}"
+    return f"{content[:start]}\n{body}\n{content[end:]}"
+
+
+def _problem_field(name, value):
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name}を指定してください")
+    if "\n" in value or "\r" in value:
+        raise ValueError(f"{name}に改行は使用できません")
+    return value.strip()
 
 
 def _atomic_write(path, content):
@@ -84,194 +146,240 @@ def _atomic_write(path, content):
 
 
 def load_library(name, target="main.cpp"):
-    library_name = SHORTCUTS.get(name, name)
-    if library_name not in _LIBRARY_NAMES:
-        raise ValueError(f"未登録のライブラリです: {name}")
+    library_name = _library_name(name)
     library_path = _library_path(library_name)
+    relative_library_path = os.path.relpath(library_path)
     target_path = Path(target)
-    if not target_path.exists():
-        raise FileNotFoundError(f"追加先が見つかりません: {target_path.resolve()}")
-    if not library_path.exists():
-        raise FileNotFoundError(f"ライブラリが見つかりません: {library_path}")
+    try:
+        if not target_path.exists() or not library_path.exists():
+            raise FileNotFoundError
+        current = target_path.read_text(encoding="utf-8")
+        library = library_path.read_text(encoding="utf-8")
+        merged = merge_cpp(current, library)
+        if merged != current:
+            _atomic_write(target_path, merged)
+    except Exception:
+        print(f"失敗: {relative_library_path}")
+        return
+    print("成功")
 
-    current = target_path.read_text(encoding="utf-8")
-    library = library_path.read_text(encoding="utf-8")
-    merged = merge_cpp(current, library)
-    if merged == current:
-        print(f"追加済み: {library_name}")
-        return False
-    _atomic_write(target_path, merged)
-    print(f"追加: {library_name} -> {target_path}")
-    return True
+
+def how(library):
+    if not callable(library):
+        raise TypeError("ライブラリの呼び出し関数を指定してください")
+    library_name = _library_name(library.__name__)
+    readme = _readme_path(library_name)
+    if not readme.exists():
+        raise FileNotFoundError(f"READMEが見つかりません: {readme}")
+    reference = _quick_reference(readme)
+    relative_readme = os.path.relpath(readme)
+    print(f"{library_name}\nREADME: {relative_readme}\n\n{reference}")
+
+
+def save_problem(libraries, title, problem_url, submission_url):
+    title = _problem_field("title", title)
+    problem_url = _problem_field("problem_url", problem_url)
+    submission_url = _problem_field("submission_url", submission_url)
+    library_functions = tuple(libraries)
+    if not library_functions:
+        raise ValueError("ライブラリを1つ以上指定してください")
+
+    library_names = []
+    for library in library_functions:
+        if not callable(library):
+            raise TypeError("ライブラリの呼び出し関数を指定してください")
+        library_name = _library_name(library.__name__)
+        if library_name not in library_names:
+            library_names.append(library_name)
+
+    escaped_title = title.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+    entry = f"- [{escaped_title}]({problem_url}) ([提出]({submission_url}))"
+    updates = []
+    for library_name in library_names:
+        readme = _readme_path(library_name)
+        if not readme.exists():
+            raise FileNotFoundError(f"READMEが見つかりません: {readme}")
+        content = readme.read_text(encoding="utf-8")
+        updated = _solved_problem_content(content, entry, problem_url, readme)
+        updates.append((readme, content, updated))
+
+    for readme, content, updated in updates:
+        if updated != content:
+            _atomic_write(readme, updated)
+    print("成功")
 
 
 def dfs():
-    return load_library("DFS")
+    load_library("DFS")
 
 
 def bfs():
-    return load_library("BFS")
+    load_library("BFS")
 
 
 def bfs01():
-    return load_library("BFS01")
+    load_library("BFS01")
 
 
 def dij():
-    return load_library("Dijkstra")
+    load_library("Dijkstra")
 
 
 def BF():
-    return load_library("BellmanFord")
+    load_library("BellmanFord")
 
 
 def WF():
-    return load_library("WarshallFloyd")
+    load_library("WarshallFloyd")
 
 
 def Kruskal():
-    return load_library("Kruskal")
+    load_library("Kruskal")
 
 
 def UF():
-    return load_library("UnionFind")
+    load_library("UnionFind")
+
+
+def UnionFind():
+    load_library("UnionFind")
 
 
 def RUF():
-    return load_library("RollbackUnionFind")
+    load_library("RollbackUnionFind")
 
 
 def SCC():
-    return load_library("SCC")
+    load_library("SCC")
 
 
 def TwoSat():
-    return load_library("TwoSat")
+    load_library("TwoSat")
 
 
 def seg():
-    return load_library("SegTree")
+    load_library("SegTree")
 
 
 def lseg():
-    return load_library("LazySegTree")
+    load_library("LazySegTree")
 
 
 def pseg():
-    return load_library("PersistentSegTree")
+    load_library("PersistentSegTree")
 
 
 def plseg():
-    return load_library("PersistentLazySegTree")
+    load_library("PersistentLazySegTree")
 
 
 def Treap():
-    return load_library("ImplicitTreap")
+    load_library("ImplicitTreap")
 
 
 def Trie():
-    return load_library("Trie")
+    load_library("Trie")
 
 
 def BTrie():
-    return load_library("BinaryTrie")
+    load_library("BinaryTrie")
 
 
 def Aho():
-    return load_library("AhoCorasick")
+    load_library("AhoCorasick")
 
 
 def BIT():
-    return load_library("BIT")
+    load_library("BIT")
 
 
 def Cum():
-    return load_library("CumulativeND")
+    load_library("CumulativeND")
 
 
 def MF():
-    return load_library("MaxFlow")
+    load_library("MaxFlow")
 
 
 def DLL():
-    return load_library("DoublyLinkedList")
+    load_library("DoublyLinkedList")
 
 
 def Era():
-    return load_library("Eratosthenes")
+    load_library("Eratosthenes")
 
 
 def GCD():
-    return load_library("GCD")
+    load_library("GCD")
 
 
 def extGCD():
-    return load_library("ExtendedGCD")
+    load_library("ExtendedGCD")
 
 
 def LCM():
-    return load_library("LCM")
+    load_library("LCM")
 
 
 def CRT():
-    return load_library("CRT")
+    load_library("CRT")
 
 
 def DIG():
-    return load_library("Digit")
+    load_library("Digit")
 
 
 def LCA():
-    return load_library("LCA")
+    load_library("LCA")
 
 
 def HLD():
-    return load_library("HLD")
+    load_library("HLD")
 
 
 def Reroot():
-    return load_library("Rerooting")
+    load_library("Rerooting")
 
 
 def RH():
-    return load_library("RollingHash")
+    load_library("RollingHash")
 
 
 def ZH():
-    return load_library("ZobristHash")
+    load_library("ZobristHash")
 
 
 def Mo():
-    return load_library("Mo")
+    load_library("Mo")
 
 
 def MP():
-    return load_library("ModPow")
+    load_library("ModPow")
 
 
 def MPD():
-    return load_library("ModPowDivision")
+    load_library("ModPowDivision")
 
 
 def Comb():
-    return load_library("Combinatorics")
+    load_library("Combinatorics")
 
 
 def Comp():
-    return load_library("Compress")
+    load_library("Compress")
 
 
 def RS():
-    return load_library("RangeSet")
+    load_library("RangeSet")
 
 
 def Grid():
-    return load_library("Grid")
+    load_library("Grid")
 
 
 def Mat():
-    return load_library("Matrix")
+    load_library("Matrix")
 
 
 def Geom():
-    return load_library("Geometry")
+    load_library("Geometry")

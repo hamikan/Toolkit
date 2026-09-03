@@ -80,6 +80,41 @@ load_library("UnionFind")
 
 ライブラリの`#include`、`using`、本体が、既存の記述順を保ったまま
 `main.cpp`へ追加されます。同じ内容が既に存在する場合は追加しません。
+正常に完了すると`成功`、失敗すると`失敗: ライブラリまでの相対パス`を
+表示します。
+
+ライブラリの一覧と使い方は[algorithm/README.md](./algorithm/README.md)から
+確認できます。
+
+ライブラリの関数、引数、戻り値、計算量をすぐに確認する場合は`how()`を
+使用します。READMEの本文は表示せず、ファイルのパスとクイックリファレンスを
+表示します。
+
+```python
+how(UF)
+how(UnionFind)
+```
+
+## 解いた問題の保存
+
+ACした問題を、使用した各ライブラリのREADMEへ保存できます。
+
+```python
+save_problem(
+    libraries=[UF, seg],
+    title="ABC431 E",
+    problem_url="https://atcoder.jp/contests/abc431/tasks/abc431_e",
+    submission_url="https://atcoder.jp/contests/abc431/submissions/12345678",
+)
+```
+
+問題は各READMEの次のマーカー間へ追加します。同じ問題URLは重複して
+追加しません。
+
+```md
+<!-- solved-problems:start -->
+<!-- solved-problems:end -->
+```
 
 `startup.py`または`cpkit/`を編集した後は、次の関数で読み直せます。
 

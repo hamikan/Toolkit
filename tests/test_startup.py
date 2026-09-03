@@ -8,6 +8,9 @@ def test_startup_exports_only_public_api(monkeypatch, root):
     namespace = runpy.run_path(startup)
 
     assert "UF" in namespace
+    assert "UnionFind" in namespace
+    assert "how" in namespace
+    assert "save_problem" in namespace
     assert "rt" in namespace
     assert "rts" in namespace
     assert "gcd" in namespace
