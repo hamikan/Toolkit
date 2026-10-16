@@ -48,7 +48,6 @@ from .libraries import (
     lseg,
     plseg,
     pseg,
-    save_problem,
     seg,
 )
 from .math_utils import (
@@ -98,7 +97,6 @@ __all__ = [
     "load_library",
     "available_libraries",
     "how",
-    "save_problem",
     "dfs",
     "bfs",
     "bfs01",
