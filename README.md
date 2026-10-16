@@ -95,27 +95,6 @@ how(UF)
 how(UnionFind)
 ```
 
-## 解いた問題の保存
-
-ACした問題を、使用した各ライブラリのREADMEへ保存できます。
-
-```python
-save_problem(
-    libraries=[UF, seg],
-    title="ABC431 E",
-    problem_url="https://atcoder.jp/contests/abc431/tasks/abc431_e",
-    submission_url="https://atcoder.jp/contests/abc431/submissions/12345678",
-)
-```
-
-問題は各READMEの次のマーカー間へ追加します。同じ問題URLは重複して
-追加しません。
-
-```md
-<!-- solved-problems:start -->
-<!-- solved-problems:end -->
-```
-
 `startup.py`または`cpkit/`を編集した後は、次の関数で読み直せます。
 
 ```python

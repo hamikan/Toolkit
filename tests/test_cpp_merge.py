@@ -57,6 +57,63 @@ def test_merge_ignores_braces_in_comments_and_literals():
     assert library.strip() in merged
 
 
+@pytest.mark.parametrize("target", ["main", "library"])
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "1'000",
+        "1'000'000",
+        "0xAB'CD",
+        "0b1010'0101",
+        "0'765",
+        "1'000ULL",
+        "1e+1'0",
+        "1'2.3'4e+5'6",
+        ".1'2e-3'4",
+        "0xA'B.C'Dp+1'2",
+    ],
+)
+def test_merge_preserves_digit_separators(target, literal):
+    from cpkit.cpp_merge import merge_cpp
+
+    declaration = f"    static constexpr auto value = {literal};\n"
+    main_body = declaration if target == "main" else ""
+    library_body = declaration if target == "library" else ""
+    main = f"int main() {{\n{main_body}}}\n"
+    library = f"struct Example {{\n{library_body}}};\n"
+
+    merged = merge_cpp(main, library)
+
+    assert main in merged
+    assert library in merged
+    assert merged.index("struct Example") < merged.index("int main()")
+    assert merge_cpp(merged, library) == merged
+
+
+@pytest.mark.parametrize("target", ["main", "library"])
+@pytest.mark.parametrize(
+    "literal",
+    ["'{'", "'}'", r"'\''", r"'\\'", "L'}'", "u'}'", "U'}'", "u8'}'", "u8'0'"],
+)
+def test_merge_preserves_character_literals_alongside_digit_separators(target, literal):
+    from cpkit.cpp_merge import merge_cpp
+
+    declarations = (
+        "    static constexpr int limit = 1'000;\n"
+        f"    static constexpr auto character = {literal};\n"
+    )
+    main_body = declarations if target == "main" else ""
+    library_body = declarations if target == "library" else ""
+    main = f"int main() {{\n{main_body}}}\n"
+    library = f"struct Example {{\n{library_body}}};\n"
+
+    merged = merge_cpp(main, library)
+
+    assert main in merged
+    assert library in merged
+    assert merge_cpp(merged, library) == merged
+
+
 @pytest.mark.parametrize(
     "library",
     [

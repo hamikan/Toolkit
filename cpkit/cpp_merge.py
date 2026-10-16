@@ -6,6 +6,7 @@ import re
 _INCLUDE_PATTERN = re.compile(r"\s*(#include|#pragma)\b")
 _USING_PATTERN = re.compile(r"\s*using\s+")
 _MAIN_PATTERN = re.compile(r"\s*(int|signed)\s+main\s*\(")
+_NUMBER_PATTERN = re.compile(r"(?:[0-9]|\.[0-9])(?:[eEpP][+-]|'\w|[\w.])*")
 
 
 def _is_include(line):
@@ -43,6 +44,15 @@ def _scan_braces(line, in_block_comment=False, quote=None, escaped=False):
         if char == "/" and next_char == "*":
             in_block_comment = True
             i += 2
+            continue
+        if char.isalpha() or char == "_":
+            i += 1
+            while i < len(line) and (line[i].isalnum() or line[i] == "_"):
+                i += 1
+            continue
+        number = _NUMBER_PATTERN.match(line, i)
+        if number is not None:
+            i = number.end()
             continue
         if char in "\"'":
             quote = char
