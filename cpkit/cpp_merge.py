@@ -161,7 +161,13 @@ def merge_cpp(main_code, library_code):
             using_at = 0
         main_lines[using_at:using_at] = new_usings
 
-    existing_blocks = {"".join(block).strip() for block in split_code(main_lines)}
+    main_blocks = split_code(main_lines)
+    existing_blocks = {"".join(block).strip() for block in main_blocks}
+    for block in main_blocks:
+        _, _, body = _extract_library(block)
+        existing_blocks.add("".join(body).strip())
+        if body:
+            break
     new_blocks = []
     for block in split_code(library_body):
         content = "".join(block)

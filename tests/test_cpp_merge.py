@@ -33,6 +33,53 @@ struct Example {
     assert merge_cpp(merged, library) == merged
 
 
+@pytest.mark.parametrize("gap", ["", "\n", " \n"])
+@pytest.mark.parametrize(
+    "headers",
+    [
+        "#include <vector>\nusing namespace std;\nusing ll = long long;\n",
+        "#include <vector>\n\nusing namespace std;\nusing ll = long long;\n",
+    ],
+)
+def test_merge_does_not_duplicate_body_next_to_headers(gap, headers):
+    from cpkit.cpp_merge import merge_cpp
+
+    body = "struct Example {\n    ll value;\n};\n"
+    main = f"{headers}{gap}{body}\nint main() {{}}\n"
+    library = f"{headers}\n{body}"
+
+    assert merge_cpp(main, library) == main
+
+
+@pytest.mark.parametrize("headers", ["", "#include <vector>\n"])
+def test_merge_adds_missing_headers_without_duplicating_existing_body(headers):
+    from cpkit.cpp_merge import merge_cpp
+
+    body = "struct Example {\n    vector<int> values;\n};\n"
+    main = f"{headers}{body}\nint main() {{}}\n"
+    library_headers = "#include <vector>\nusing namespace std;\n"
+    library = f"{library_headers}\n{body}"
+
+    merged = merge_cpp(main, library)
+
+    assert merged == f"{library_headers}{body}\nint main() {{}}\n"
+    assert merge_cpp(merged, library) == merged
+
+
+def test_merge_preserves_multiline_using_declarations():
+    from cpkit.cpp_merge import merge_cpp
+
+    declaration = "using Generator = decltype([] {\n    return 1;\n});\n"
+    main = f"{declaration}\nint main() {{}}\n"
+    library = "struct Example {\n    int value;\n};\n"
+
+    merged = merge_cpp(main, library)
+
+    assert merged.count(declaration) == 1
+    assert library in merged
+    assert merge_cpp(merged, library) == merged
+
+
 def test_body_requires_main_function():
     from cpkit.cpp_merge import merge_cpp
 

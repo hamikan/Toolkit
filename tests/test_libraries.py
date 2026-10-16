@@ -36,6 +36,23 @@ def test_load_library_from_any_working_directory(tmp_path, capsys):
         libraries.load_library("../outside", main)
 
 
+def test_load_library_does_not_duplicate_existing_body_without_header_gap(
+    root, tmp_path, capsys
+):
+    library = root / "algorithm" / "UnionFind" / "main.cpp"
+    original = library.read_text(encoding="utf-8").replace(
+        "using namespace std;\n\n", "using namespace std;\n", 1
+    ) + "\nint main() {}\n"
+    main = tmp_path / "main.cpp"
+    main.write_text(original, encoding="utf-8")
+
+    libraries.load_library("UF", main)
+    libraries.load_library("UnionFind", main)
+
+    assert main.read_text(encoding="utf-8") == original
+    assert capsys.readouterr().out == "成功\n成功\n"
+
+
 def test_load_library_reports_relative_library_path_on_failure(
     tmp_path, monkeypatch, mocker, capsys
 ):
