@@ -137,7 +137,14 @@ def _header_positions(lines):
     return include_positions, using_positions
 
 
-def merge_cpp(main_code, library_code):
+def _block_key(block):
+    start = 0
+    while start < len(block) and block[start].strip().startswith("// Source: "):
+        start += 1
+    return "".join(block[start:]).strip()
+
+
+def merge_cpp(main_code, library_code, source_url=None):
     main_lines = main_code.splitlines(keepends=True)
     library_lines = library_code.splitlines(keepends=True)
     library_includes, library_usings, library_body = _extract_library(library_lines)
@@ -162,16 +169,16 @@ def merge_cpp(main_code, library_code):
         main_lines[using_at:using_at] = new_usings
 
     main_blocks = split_code(main_lines)
-    existing_blocks = {"".join(block).strip() for block in main_blocks}
+    existing_blocks = {_block_key(block) for block in main_blocks}
     for block in main_blocks:
         _, _, body = _extract_library(block)
-        existing_blocks.add("".join(body).strip())
+        existing_blocks.add(_block_key(body))
         if body:
             break
     new_blocks = []
     for block in split_code(library_body):
         content = "".join(block)
-        key = content.strip()
+        key = _block_key(block)
         if not key or _MAIN_PATTERN.search(content):
             continue
         if key not in existing_blocks:
@@ -185,6 +192,10 @@ def merge_cpp(main_code, library_code):
         added = []
         if main_at > 0 and main_lines[main_at - 1].strip():
             added.append("\n")
+        if source_url:
+            source = f"// Source: {source_url}"
+            if not any(line.strip() == source for line in main_lines):
+                added.append(source + "\n")
         for block in new_blocks:
             added.extend(block)
             if not block[-1].endswith("\n"):

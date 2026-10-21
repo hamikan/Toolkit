@@ -54,6 +54,7 @@ SHORTCUTS = {
     "Geom": "Geometry",
 }
 _LIBRARY_NAMES = frozenset(SHORTCUTS.values())
+_LIBRARY_URL = "https://github.com/hamikan/Toolkit/blob/main/algorithm"
 _QUICK_REFERENCE_START = "<!-- quick-reference:start -->"
 _QUICK_REFERENCE_END = "<!-- quick-reference:end -->"
 
@@ -125,7 +126,8 @@ def load_library(name, target="main.cpp"):
             raise FileNotFoundError
         current = target_path.read_text(encoding="utf-8")
         library = library_path.read_text(encoding="utf-8")
-        merged = merge_cpp(current, library)
+        source_url = f"{_LIBRARY_URL}/{library_name}/main.cpp"
+        merged = merge_cpp(current, library, source_url=source_url)
         if merged != current:
             _atomic_write(target_path, merged)
     except Exception:

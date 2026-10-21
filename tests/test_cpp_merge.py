@@ -33,6 +33,50 @@ struct Example {
     assert merge_cpp(merged, library) == merged
 
 
+def test_merge_adds_source_before_library_body():
+    from cpkit.cpp_merge import merge_cpp
+
+    main = "int main() {}\n"
+    library = (
+        "#include <vector>\nusing namespace std;\n\n"
+        "struct Helper {\n    int value;\n};\n\n"
+        "struct Example {\n    Helper helper;\n};\n"
+    )
+    source_url = "https://github.com/hamikan/Toolkit/blob/main/algorithm/Example/main.cpp"
+
+    merged = merge_cpp(main, library, source_url=source_url)
+
+    assert merged == (
+        "#include <vector>\nusing namespace std;\n\n"
+        f"// Source: {source_url}\n"
+        "struct Helper {\n    int value;\n};\n\n"
+        "struct Example {\n    Helper helper;\n};\n\n"
+        "int main() {}\n"
+    )
+    assert merge_cpp(merged, library, source_url=source_url) == merged
+    assert merge_cpp(merged, library) == merged
+
+
+def test_merge_deduplicates_shared_blocks_with_sources():
+    from cpkit.cpp_merge import merge_cpp
+
+    shared = "struct Shared {\n    int value;\n};\n\n"
+    first = shared + "struct First {\n    Shared shared;\n};\n"
+    second = shared + "struct Second {\n    Shared shared;\n};\n"
+    base_url = "https://github.com/hamikan/Toolkit/blob/main/algorithm"
+    merged = merge_cpp("int main() {}\n", first, source_url=f"{base_url}/First/main.cpp")
+
+    merged = merge_cpp(merged, second, source_url=f"{base_url}/Second/main.cpp")
+
+    assert merged.count("struct Shared") == 1
+    assert merged.count("struct First") == 1
+    assert merged.count("struct Second") == 1
+    assert merged.count(f"// Source: {base_url}/First/main.cpp\n") == 1
+    assert f"// Source: {base_url}/Second/main.cpp\nstruct Second" in merged
+    assert merge_cpp(merged, first, source_url=f"{base_url}/First/main.cpp") == merged
+    assert merge_cpp(merged, second, source_url=f"{base_url}/Second/main.cpp") == merged
+
+
 @pytest.mark.parametrize("gap", ["", "\n", " \n"])
 @pytest.mark.parametrize(
     "headers",
@@ -49,6 +93,20 @@ def test_merge_does_not_duplicate_body_next_to_headers(gap, headers):
     library = f"{headers}\n{body}"
 
     assert merge_cpp(main, library) == main
+
+
+@pytest.mark.parametrize("gap", ["", "\n"])
+@pytest.mark.parametrize("has_source", [False, True])
+def test_merge_with_source_does_not_duplicate_existing_body(gap, has_source):
+    from cpkit.cpp_merge import merge_cpp
+
+    headers = "#include <vector>\nusing namespace std;\n"
+    body = "struct Example {\n    vector<int> values;\n};\n"
+    source_url = "https://github.com/hamikan/Toolkit/blob/main/algorithm/Example/main.cpp"
+    source = f"// Source: {source_url}\n" if has_source else ""
+    main = f"{headers}{gap}{source}{body}\nint main() {{}}\n"
+
+    assert merge_cpp(main, headers + "\n" + body, source_url=source_url) == main
 
 
 @pytest.mark.parametrize("headers", ["", "#include <vector>\n"])
