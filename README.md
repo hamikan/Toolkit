@@ -83,6 +83,15 @@ load_library("UnionFind")
 正常に完了すると`成功`、失敗すると`失敗: ライブラリまでの相対パス`を
 表示します。
 
+追加するライブラリ本体の直前に、GitHubの公開URLを自動で付けます。
+
+```cpp
+// Source: https://github.com/hamikan/Toolkit/blob/main/algorithm/UnionFind/main.cpp
+struct UnionFind {
+    // ...
+};
+```
+
 ライブラリの一覧と使い方は[algorithm/README.md](./algorithm/README.md)から
 確認できます。
 

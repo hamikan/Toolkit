@@ -27,7 +27,10 @@ def test_load_library_from_any_working_directory(tmp_path, capsys):
 
     assert libraries.load_library("UF", main) is None
     first = main.read_text(encoding="utf-8")
-    assert "struct UnionFind" in first
+    assert (
+        "// Source: https://github.com/hamikan/Toolkit/blob/main/algorithm/UnionFind/main.cpp\n"
+        "struct UnionFind"
+    ) in first
     assert libraries.load_library("UnionFind", main) is None
     assert main.read_text(encoding="utf-8") == first
     assert capsys.readouterr().out == "成功\n成功\n"
@@ -178,8 +181,8 @@ def test_every_shortcut_targets_expected_library(mocker, shortcut, library):
     assert result is None
 
 
-@pytest.mark.parametrize("shortcut", libraries.SHORTCUTS)
-def test_every_registered_library_can_be_merged(tmp_path, shortcut):
+@pytest.mark.parametrize(("shortcut", "library"), libraries.SHORTCUTS.items())
+def test_every_registered_library_can_be_merged(tmp_path, shortcut, library, capsys):
     main = tmp_path / "main.cpp"
     main.write_text(
         "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {}\n",
@@ -187,3 +190,9 @@ def test_every_registered_library_can_be_merged(tmp_path, shortcut):
     )
 
     assert libraries.load_library(shortcut, main) is None
+    first = main.read_text(encoding="utf-8")
+    source = f"// Source: https://github.com/hamikan/Toolkit/blob/main/algorithm/{library}/main.cpp\n"
+    assert first.count(source) == 1
+    assert libraries.load_library(library, main) is None
+    assert main.read_text(encoding="utf-8") == first
+    assert capsys.readouterr().out == "成功\n成功\n"
